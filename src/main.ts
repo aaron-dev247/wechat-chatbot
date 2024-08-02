@@ -1,9 +1,9 @@
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
-import { bot } from './bots/wechat_bot.js';
+import { bot } from './bots/wechat_bot';
 import { FileBox } from 'file-box';
-import { getRoomInfo, sendFileToRoom, sendTextMessageToRoom } from './util/room_util.js';
+import { getRoomInfo, sendFileToRoom, sendTextMessageToRoom } from './util/room_util';
 import getRawBody from 'raw-body';
 
 const app = express()
