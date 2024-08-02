@@ -1,6 +1,18 @@
 {
-  "name": "wechaty-chatbot",
+  "name": "wechat-chatbot",
   "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "wechat",
+    "chatbot",
+    "微信"
+  ],
+  "author": "Aaron",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
     "express": "^4.19.2",
     "qrcode-terminal": "^0.12.0",
