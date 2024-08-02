@@ -1,125 +1,99 @@
 import express from 'express';
+import multer from 'multer';
+import cors from 'cors';
 import { bot } from './bots/wechat_bot.js';
 import { FileBox } from 'file-box';
+import { getRoomInfo, sendFileToRoom, sendTextMessageToRoom } from './util/room_util.js';
+import getRawBody from 'raw-body';
 
-const app = express();
-app.use(express.json()); // To parse JSON bodies
+const app = express()
+    .use(express.json()) // 解析 JSON 请求体
+    .use(cors()) // 允许跨域
 
-// Get contact by ID
-app.get('/contact/:id', async function (req, res) {
-    const id = req.params.id;
-    const contact = await bot.Contact.find({ id: id });
-    if (!contact) {
-        res.status(404).send('Contact not found');
-        return;
-    }
-    res.json({ "name": contact.name(), "id": contact.id });
+const upload = multer({
+    storage: multer.memoryStorage()
 });
 
-// Get room by ID
-app.get('/room/:id', async function (req, res) {
-    const id = req.params.id;
-    const room = await bot.Room.find({ id: id });
-    if (!room) {
-        res.status(404).send('Room not found');
-        return;
+// 通过群名称获取群信息
+app.post('/room', async (req, res) => {
+    try {
+        res.json(await getRoomInfo(req.body.name))
+    } catch (error: any) {
+        res.status(404).send(error.message);
     }
-    res.json({ "name": await room.topic(), "id": room.id });
 });
 
-// Get contact by name
-app.get('/contact', async function (req, res) {
-    const name = req.query.name;
+// 通过群 ID 或群名称发送消息
+app.post('/room/text', async (req, res) => {
+    let { id, name, text } = req.body;
 
-    if (typeof name !== 'string') {
-        res.status(400).send('Invalid contact name');
+    if (!id && !name) {
+        res.status(400).send('Room ID or name is required');
         return;
     }
-    const contact = await bot.Contact.find({ name: name });
-    if (!contact) {
-        res.status(404).send('Contact not found');
+
+    if (!id) {
+        try {
+            id = (await getRoomInfo(name)).id;
+        } catch (error: any) {
+            res.status(404).send(error.message);
+            return;
+        }
+    }
+
+    try {
+        await sendTextMessageToRoom(id, text);
+        res.send('Text message sent');
+    } catch (error: any) {
+        res.status(404).send(error.message);
         return;
     }
-    res.json({ "name": contact.name(), "id": contact.id });
 });
 
-// Get room by name
-app.get('/room', async function (req, res) {
-    const name = req.query.name;
+// 接收文件发送到指定 ID 的群
+app.post('/room/file', upload.single('file'), async (req, res) => {
+    const file = req.file;
 
-    if (typeof name !== 'string') {
-        res.status(400).send('Invalid room name');
+    if (!file) {
+        res.status(400).send('File is required');
         return;
     }
 
-    const room = await bot.Room.find({ topic: name });
-    if (!room) {
-        res.status(404).send('Room not found');
-        return;
+    try {
+        await sendFileToRoom(req.body.id, FileBox.fromBuffer(file.buffer, file.originalname));
+        res.send('File sent');
+    } catch (error: any) {
+        res.status(404).send(error.message);
     }
-    res.json({ "name": await room.topic(), "id": room.id });
 });
 
-// Post text message to contact by ID
-app.post('/contact/text/:id', async function (req, res) {
-    const id = req.params.id;
-    const text = req.body.text;
+// 接收 bytes ( 字节流 ) 转为文件发送到指定 ID 的群
+app.post('/room/file/bytes', async (req, res) => {
+    const id = req.query.id;
+    const originalname = req.query.filename as string;
 
-    const contact = await bot.Contact.find({ id });
-    if (!contact) {
-        res.status(404).send('Contact not found');
+    if (!id) {
+        res.status(400).send('Room ID is required');
+        return;
+    }
+    if (!originalname) {
+        res.status(400).send('Filename is required');
         return;
     }
 
-    await contact.say(text);
-    res.send('Text message sent');
-});
+    try {
+        const binaryData = await getRawBody(req);
 
-// Post text message to room by ID
-app.post('/room/text/:id', async function (req, res) {
-    const id = req.params.id;
-    const text = req.body.text;
+        if (!binaryData) {
+            res.status(400).send('File is required');
+            return;
+        }
 
-    const room = await bot.Room.find({ id });
-    if (!room) {
-        res.status(404).send('Room not found');
-        return;
+        await sendFileToRoom(id as string, FileBox.fromBuffer(binaryData, originalname));
+        res.send('File sent');
+    } catch (error: any) {
+        res.status(404).send(error.message);
     }
-
-    await room.say(text);
-    res.send('Text message sent');
-});
-
-// Post file to room by ID
-app.post('/contact/file/:id', async function (req, res) {
-    const id = req.params.id;
-    const fileUrl = req.body.fileUrl;
-
-    const contact = await bot.Contact.find({ id });
-    if (!contact) {
-        res.status(404).send('Contact not found');
-        return;
-    }
-
-    const fileBox = FileBox.fromUrl(fileUrl);
-    await contact.say(fileBox);
-    res.send('File sent');
-});
-
-// Post file to room by ID
-app.post('/room/file/:id', async function (req, res) {
-    const id = req.params.id;
-    const fileUrl = req.body.fileUrl;
-
-    const room = await bot.Room.find({ id });
-    if (!room) {
-        res.status(404).send('Room not found');
-        return;
-    }
-
-    const fileBox = FileBox.fromUrl(fileUrl);
-    await room.say(fileBox);
-    res.send('File sent');
 });
 
 // Start server

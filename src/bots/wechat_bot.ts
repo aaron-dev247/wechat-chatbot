@@ -6,7 +6,6 @@ import {
 } from "wechaty";
 
 import qrTerm from "qrcode-terminal";
-import { FileBox } from "file-box";
 
 /**
  *
@@ -89,45 +88,24 @@ function onError(e: Error) {
 }
 
 async function onMessage(msg: Message) {
-  console.info(msg.toString())
 
   if (msg.self()) {
-    console.info('Message discarded because its outgoing')
+    // console.info('Message discarded because its outgoing')
     return
   }
 
   if (msg.age() > 2 * 60) {
-    console.info('Message discarded because its TOO OLD(than 2 minutes)')
+    // console.info('Message discarded because its TOO OLD(than 2 minutes)')
     return
   }
 
-  if (msg.type() !== bot.Message.Type.Text
-    || !/^(ding|ping|bing|code)$/i.test(msg.text())
-  ) {
-    console.info('Message discarded because it does not match ding/ping/bing/code')
-    return
-  }
+  console.info(msg.toString())
 
-  /**
-   * 1. reply 'dong'
-   */
-  await msg.say('dong')
-  console.info('REPLY: dong')
+  // if (msg.type() !== bot.Message.Type.Text
+  //   || !/^(ding|ping|bing|code)$/i.test(msg.text())
+  // ) {
+  //   console.info('Message discarded because it does not match ding/ping/bing/code')
+  //   return
+  // }
 
-  /**
-   * 2. reply image(qrcode image)
-   */
-  const fileBox = FileBox.fromUrl('https://wechaty.github.io/wechaty/images/bot-qr-code.png')
-
-  await msg.say(fileBox)
-  console.info('REPLY: %s', fileBox.toString())
-
-  /**
-   * 3. reply 'scan now!'
-   */
-  await msg.say([
-    'Join Wechaty Developers Community\n\n',
-    'Scan now, because other Wechaty developers want to talk with you too!\n\n',
-    '(secret code: wechaty)',
-  ].join(''))
 }
